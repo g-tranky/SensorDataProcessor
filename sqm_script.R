@@ -1,4 +1,4 @@
-#####Sensor Data Processor#######
+#####SQM Sensor Data Processor#######
 
 #Create Database for sqm data####
 #Run sensor data processor python script in folder
@@ -93,8 +93,9 @@ write.csv(df_all, "df_all.csv", row.names = F)
 # Pip install netCDF4 >
 # Pip install pandas >
 # python3 extract_NARR_cloud-NEW.py
+#Rename output file as df_all_cloud
 
-#Run steps at begining of file to get df_all_cloud
+#Reupload dataframe with appended cloud coverage
 df_all_cloud <- read.csv("df_all_cloud.csv")
 
 df_all_cloud$utc_time <- as.POSIXct(df_all_cloud$utc_time)
@@ -152,14 +153,7 @@ closest_indices <- sapply(houston_cloud$utc_time, function(x) {
 # Merge
 hou_result <- cbind(houston_cloud, hou_weather[closest_indices, ])
 
-#write csvs
-write.csv(dal_result, "dal_result.csv", row.names = F)
-write.csv(hou_result, "hou_result.csv", row.names = F)
 #Clean up and merge result
-setwd("~/Documents/OU/workspace/SensorDataProcessor")
-dal_result <- read.csv("dal_result.csv")
-hou_reslut <- read.csv("hou_result.csv")
-
 columns_to_remove <- c("X", "Solar.Radiation..W.m2.", "Soil.Volumetric.Water.Content.5.cm....", "X.1")
 dal_result_clean <- dal_result[, -which(names(dal_result) %in% columns_to_remove)]
 
@@ -288,10 +282,6 @@ hou_result_pm <- left_join(hou_result_p,average_houston_pm, by = "Date")
 dal_result_pm$City <- "Dallas"
 hou_result_pm$City <- "Houston"
 
-setwd("~/Documents/OU/workspace/SensorDataProcessor")
-write.csv(dal_result_pm, "dal_result_pm.csv", row.names=F)
-write.csv(hou_result_pm, "hou_result_pm.csv", row.names=F)
-
   #add wind -- closest index#####
 setwd("~/Documents/OU/workspace/SensorDataProcessor/dallas_weather")
 dal_wind <- read.csv("dal_wind.csv")
@@ -299,14 +289,8 @@ dal_wind <- read.csv("dal_wind.csv")
 setwd("~/Documents/OU/workspace/SensorDataProcessor/houston_weather")
 hou_wind <- read.csv("hou_wind.csv")
 
-setwd("~/Documents/OU/workspace/SensorDataProcessor")
-dal_result_pm <- read.csv("dal_result_pm.csv")
-hou_result_pm <- read.csv("hou_result_pm.csv")
-
-
 colnames(dal_wind)[2] = "utc_time"
 colnames(hou_wind)[2] = "utc_time"
-
 
 #select only these two because on the correct time interval
 dal_wind <- dal_wind[, c("utc_time", "wind_speed_m_s", "wind_direction_deg")]
@@ -356,7 +340,7 @@ dal_hou_msas <- dal_hou_msas[, !colnames(dal_hou_msas) %in% "utc_time.1"]
 #Don't have to do this if not doing models...
 #eliminates 360 results
 
-#trim upper lower 95%
+#trim upper lower 5%
 library(dplyr)
 
 # Calculate quantiles by location and date
@@ -369,10 +353,6 @@ quantiles_by_date <- dal_hou_msas %>%
 dal_hou_msas_filtered <- dal_hou_msas %>%
   inner_join(quantiles_by_date, by = c("location", "Date")) %>%
   filter(msas >= p5_msas & msas <= p95_msas)
-
-#erase obs. over 18
-dal_hou_msas_filtered <- dal_hou_msas_filtered[dal_hou_msas_filtered$msas <18,] 
-#eliminates another 278 results
 
 hist(dal_hou_msas_filtered$msas, main= "95th Filtered Histogram")
 
@@ -414,7 +394,7 @@ ggplot(summary_data, aes(x = Date, y = msas_mean, color = location)) +
   theme_minimal() 
 
 
-#two locations for comparison
+#Compare two locations on same graph
 compare_locals <- dal_hou_msas_filtered[dal_hou_msas_filtered$location == "City"|
                                           dal_hou_msas_filtered$location == "Audubon",]
 compare_locals$Date <- as.Date(compare_locals$Date)
